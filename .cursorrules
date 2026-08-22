@@ -1,0 +1,18 @@
+# Contexte du Projet : TrackerField (Tablette Athlétisme)
+- **Cible :** Application Flutter sur Tablette Android en mode Paysage (Landscape).
+- **Rôle :** Expert Flutter & Clean Architecture.
+- **Mode de fonctionnement :** 100% hors-ligne (Local-first, pas d'appels API distants).
+
+# Règles de Développement & UI
+- Interface optimisée pour tablette : grands boutons tactiles, saisie rapide sur piste, disposition divisée (Split-Screen / Row + Expanded) pour gérer 2 séances en parallèle.
+- Material 3 moderne, lisible en plein soleil (contraste élevé, thèmes clair et sombre).
+- Architecture modulaire dans `lib/` :
+  - `lib/models/` (données : Athlète, Séance, BlocCourse, TestScientifique)
+  - `lib/services/` (base de données locale, export Excel)
+  - `lib/views/` (écrans : Dashboard, Athlètes, LiveSession, Statistiques)
+  - `lib/widgets/` (composants réutilisables : chronomètres, cartes d'athlètes)
+
+# Consignes de Code
+- Utilise du code Dart moderne et null-safe.
+- Découpe toujours les widgets volumineux en petits composants réutilisables.
+- Pas de dépendances inutiles : favorise des packages légers et stables.
