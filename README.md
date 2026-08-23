@@ -3,14 +3,16 @@
 Application Flutter locale (offline-first) destinée aux entraîneurs d'athlétisme.
 Elle est conçue en priorité pour tablette Android en mode paysage, avec une interface adaptée aussi au téléphone.
 
-TrackerField permet de gérer les athlètes, de conduire des séances sur le terrain, de planifier l'entraînement et les compétitions, et d'exporterer ou réimporter les données en Excel.
+TrackerField permet de gérer les athlètes, de conduire des séances sur le terrain, de planifier l'entraînement et les compétitions, et d'exporter ou réimporter les données en Excel.
+
+![Preview](docs/preview.png)
 
 ## Fonctionnalités
 
 ### Athlètes
 
 - Création et édition des athlètes (nom, numéro de licence, date de naissance, photo)
-- Cartes athlètes avec âge, licence et dette de granolas (optionnellement masquable)
+- Cartes athlètes avec âge, licence et dette de granolas (option demandée par mon coach mais masquable)
 - Fiche détaillée : historique des séances, tests de performance, courbe d'évolution
 - Heatmap d'assiduité sur plusieurs semaines
 - Compteur de granolas (incrément / décrément)
@@ -21,7 +23,7 @@ TrackerField permet de gérer les athlètes, de conduire des séances sur le ter
 - Chargement d'une séance planifiée du jour ou d'un modèle
 - Sélection des athlètes participants
 - Structure en blocs et exercices (Course, Musculation, Saut)
-- Saisie des distances, temps de récupération (minutes / secondes), notes et chronos par athlète
+- Saisie des distances, temps de récupération (minutes / secondes), notes techniques et chronos par athlète
 - Ajout de photos et vidéos sur les exercices
 - Duplication rapide de blocs et d'exercices
 - Sauvegarde en un tap (icône en haut à droite)
@@ -35,7 +37,7 @@ TrackerField permet de gérer les athlètes, de conduire des séances sur le ter
 
 ### Calendrier
 
-- Vue calendrier unique regroupant :
+- Vue calendrier regroupant :
   - séances effectuées
   - séances planifiées
   - compétitions
