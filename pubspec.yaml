@@ -46,6 +46,9 @@ dependencies:
   fl_chart: ^1.2.0
   flutter_localizations:
     sdk: flutter
+  image_cropper: ^12.2.1
+  speech_to_text: ^7.4.0
+  flutter_volume_controller: ^2.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

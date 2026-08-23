@@ -1,53 +1,47 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'seance.dart';
+part of 'competition.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class SeanceAdapter extends TypeAdapter<Seance> {
+class CompetitionAdapter extends TypeAdapter<Competition> {
   @override
-  final int typeId = 2;
+  final int typeId = 8;
 
   @override
-  Seance read(BinaryReader reader) {
+  Competition read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Seance(
+    return Competition(
       id: fields[0] as String?,
       titre: fields[1] as String,
-      date: fields[2] as DateTime?,
-      athleteIds: (fields[3] as List?)?.cast<String>(),
-      blocs: (fields[4] as List?)?.cast<Bloc>(),
-      isTemplate: fields[5] == null ? false : fields[5] as bool,
-      estPlanifiee: fields[6] == null ? false : fields[6] as bool,
-      datePrevue: fields[7] as DateTime?,
+      dateDebut: fields[2] as DateTime,
+      dateFin: fields[3] as DateTime,
+      lieu: fields[4] as String,
+      athleteIds: (fields[5] as List?)?.cast<String>(),
     );
   }
 
   @override
-  void write(BinaryWriter writer, Seance obj) {
+  void write(BinaryWriter writer, Competition obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.titre)
       ..writeByte(2)
-      ..write(obj.date)
+      ..write(obj.dateDebut)
       ..writeByte(3)
-      ..write(obj.athleteIds)
+      ..write(obj.dateFin)
       ..writeByte(4)
-      ..write(obj.blocs)
+      ..write(obj.lieu)
       ..writeByte(5)
-      ..write(obj.isTemplate)
-      ..writeByte(6)
-      ..write(obj.estPlanifiee)
-      ..writeByte(7)
-      ..write(obj.datePrevue);
+      ..write(obj.athleteIds);
   }
 
   @override
@@ -56,7 +50,7 @@ class SeanceAdapter extends TypeAdapter<Seance> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SeanceAdapter &&
+      other is CompetitionAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

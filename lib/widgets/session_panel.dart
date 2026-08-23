@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/bloc_entrainement.dart';
+import '../models/bloc.dart';
 import '../models/seance.dart';
 import '../services/athlete_provider.dart';
 import '../services/database_service.dart';
-import 'bloc_entrainement_dialog.dart';
-import 'media_gallery_dialog.dart';
+import 'bloc_dialog.dart';
+import 'bloc_exercices_details.dart';
 
 class SessionPanel extends StatefulWidget {
   const SessionPanel({super.key, this.panelLabel});
@@ -22,8 +22,11 @@ class SessionPanel extends StatefulWidget {
 class _SessionPanelState extends State<SessionPanel> {
   final _titreController = TextEditingController();
 
-  final List<BlocEntrainement> _blocs = [];
+  final List<Bloc> _blocs = [];
   final Set<String> _selectedAthleteIds = {};
+
+  /// Si non null, la sauvegarde met à jour cette séance planifiée.
+  String? _loadedPlanifieeId;
 
   Timer? _timer;
   Duration _elapsed = Duration.zero;
@@ -67,33 +70,26 @@ class _SessionPanelState extends State<SessionPanel> {
     });
   }
 
-  Future<void> _addBloc() async {
-    if (_selectedAthleteIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Sélectionne d\'abord les athlètes (requis pour les courses).',
-          ),
-        ),
-      );
-      return;
-    }
-    final bloc = await showBlocEntrainementDialog(
+  Future<void> _addOrEditBloc({Bloc? existing, int? index}) async {
+    final bloc = await showBlocDialog(
       context,
+      initial: existing,
       athleteIds: _selectedAthleteIds.toList(),
     );
     if (bloc == null || !mounted) return;
-    setState(() => _blocs.add(bloc));
+    setState(() {
+      if (index == null) {
+        _blocs.add(bloc);
+      } else {
+        _blocs[index] = bloc;
+      }
+    });
   }
 
-  Future<void> _editBloc(int index) async {
-    final bloc = await showBlocEntrainementDialog(
-      context,
-      initial: _blocs[index],
-      athleteIds: _selectedAthleteIds.toList(),
-    );
-    if (bloc == null || !mounted) return;
-    setState(() => _blocs[index] = bloc);
+  void _duplicateBloc(int index) {
+    setState(() {
+      _blocs.insert(index + 1, _blocs[index].copy(asNew: true));
+    });
   }
 
   Future<void> _deleteBloc(int index) async {
@@ -120,41 +116,6 @@ class _SessionPanelState extends State<SessionPanel> {
     );
     if (confirmed != true || !mounted) return;
     setState(() => _blocs.removeAt(index));
-  }
-
-  Future<void> _showBlocActions(int index) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Modifier le bloc'),
-              onTap: () => Navigator.pop(context, 'edit'),
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Supprimer le bloc',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () => Navigator.pop(context, 'delete'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || action == null) return;
-    if (action == 'edit') {
-      await _editBloc(index);
-    } else if (action == 'delete') {
-      await _deleteBloc(index);
-    }
   }
 
   Future<void> _showSelectAthletesDialog() async {
@@ -223,6 +184,110 @@ class _SessionPanelState extends State<SessionPanel> {
     }
   }
 
+  Future<void> _loadSeance() async {
+    final db = context.read<DatabaseService>();
+    await db.ensureReady();
+    if (!mounted) return;
+
+    final todayPlanifiees = db.getPlanifieesForDay(DateTime.now());
+    final templates = db.getTemplates();
+
+    if (todayPlanifiees.isEmpty && templates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Aucune séance planifiée aujourd\'hui ni modèle disponible.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<_LoadSeanceChoice>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Charger une séance'),
+          content: SizedBox(
+            width: 440,
+            height: 420,
+            child: ListView(
+              children: [
+                if (todayPlanifiees.isNotEmpty) ...[
+                  Text(
+                    'Planifiées aujourd\'hui',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...todayPlanifiees.map(
+                    (seance) => ListTile(
+                      leading: const Icon(Icons.schedule),
+                      title: Text(seance.titre),
+                      subtitle: Text('${seance.blocs.length} bloc(s)'),
+                      onTap: () => Navigator.pop(
+                        context,
+                        _LoadSeanceChoice.planifiee(seance),
+                      ),
+                    ),
+                  ),
+                  if (templates.isNotEmpty) const Divider(height: 24),
+                ],
+                if (templates.isNotEmpty) ...[
+                  Text(
+                    'Modèles',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...templates.map(
+                    (template) => ListTile(
+                      leading: const Icon(Icons.event_note),
+                      title: Text(template.titre),
+                      subtitle: Text('${template.blocs.length} bloc(s)'),
+                      onTap: () => Navigator.pop(
+                        context,
+                        _LoadSeanceChoice.template(template),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+          ],
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+
+    setState(() {
+      _titreController.text = selected.seance.titre;
+      _blocs
+        ..clear()
+        ..addAll(selected.seance.blocs.map((bloc) => bloc.copy(asNew: true)));
+      _loadedPlanifieeId =
+          selected.isPlanifiee ? selected.seance.id : null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          selected.isPlanifiee
+              ? 'Séance planifiée « ${selected.seance.titre} » chargée.'
+              : 'Modèle « ${selected.seance.titre} » chargé.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveSeance() async {
     if (_isSaving) return;
 
@@ -238,14 +303,34 @@ class _SessionPanelState extends State<SessionPanel> {
     _pauseChrono();
 
     try {
-      final seance = Seance(
-        titre: titre,
-        date: DateTime.now(),
-        athleteIds: _selectedAthleteIds.toList(),
-        blocs: _blocs.map((bloc) => bloc.copy()).toList(),
-      );
+      final db = context.read<DatabaseService>();
+      final now = DateTime.now();
+      final planifieeId = _loadedPlanifieeId;
 
-      await context.read<DatabaseService>().addSeance(seance);
+      if (planifieeId != null) {
+        final existing = db.getSeance(planifieeId);
+        final updated = Seance(
+          id: planifieeId,
+          titre: titre,
+          date: now,
+          athleteIds: _selectedAthleteIds.toList(),
+          blocs: _blocs.map((bloc) => bloc.copy()).toList(),
+          isTemplate: false,
+          estPlanifiee: false,
+          datePrevue: existing?.datePrevue,
+        );
+        await db.updateSeance(updated);
+      } else {
+        final seance = Seance(
+          titre: titre,
+          date: now,
+          athleteIds: _selectedAthleteIds.toList(),
+          blocs: _blocs.map((bloc) => bloc.copy()).toList(),
+          isTemplate: false,
+          estPlanifiee: false,
+        );
+        await db.addSeance(seance);
+      }
 
       if (!mounted) return;
 
@@ -253,6 +338,7 @@ class _SessionPanelState extends State<SessionPanel> {
         _titreController.clear();
         _blocs.clear();
         _selectedAthleteIds.clear();
+        _loadedPlanifieeId = null;
         _elapsed = Duration.zero;
         _isRunning = false;
       });
@@ -303,6 +389,15 @@ class _SessionPanelState extends State<SessionPanel> {
                     ),
                     const SizedBox(height: 8),
                   ],
+                  FilledButton.tonalIcon(
+                    onPressed: _loadSeance,
+                    icon: const Icon(Icons.event_note),
+                    label: const Text('Charger une séance'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _titreController,
                     decoration: const InputDecoration(
@@ -399,7 +494,7 @@ class _SessionPanelState extends State<SessionPanel> {
                   ),
                   const SizedBox(height: 16),
                   FilledButton.tonalIcon(
-                    onPressed: _addBloc,
+                    onPressed: () => _addOrEditBloc(),
                     icon: const Icon(Icons.add),
                     label: const Text('Ajouter un bloc'),
                     style: FilledButton.styleFrom(
@@ -428,57 +523,61 @@ class _SessionPanelState extends State<SessionPanel> {
                   else
                     ...List.generate(_blocs.length, (index) {
                       final bloc = _blocs[index];
-                      final athletes = context.read<AthleteProvider>().athletes;
-                      final chronosLabel = bloc.chronos
-                          .map((c) {
-                            final nom = athletes
-                                    .where((a) => a.id == c.athleteId)
-                                    .map((a) => a.nom)
-                                    .firstOrNull ??
-                                c.athleteId;
-                            return '$nom: ${c.chrono}';
-                          })
-                          .join(' · ');
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text('${index + 1}'),
-                            ),
-                            title: Text(bloc.titreAffiche),
-                            subtitle: Text(
-                              [
-                                bloc.typeBloc,
-                                if (chronosLabel.isNotEmpty) chronosLabel,
-                                if (bloc.notes.isNotEmpty) bloc.notes,
-                              ].join('\n'),
-                            ),
-                            isThreeLine: chronosLabel.isNotEmpty ||
-                                bloc.notes.isNotEmpty,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (bloc.mediaPaths.isNotEmpty)
-                                  IconButton(
-                                    tooltip: 'Voir les médias',
-                                    icon: Badge(
-                                      label: Text('${bloc.mediaPaths.length}'),
-                                      child: const Icon(Icons.perm_media),
-                                    ),
-                                    onPressed: () => showMediaGalleryDialog(
-                                      context,
-                                      bloc.mediaPaths,
-                                    ),
-                                  ),
-                                IconButton(
-                                  tooltip: 'Modifier ou supprimer',
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () => _showBlocActions(index),
-                                ),
-                              ],
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 2,
+                        child: ExpansionTile(
+                          leading: CircleAvatar(child: Text('${index + 1}')),
+                          title: Text(
+                            bloc.nom,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                [
+                                  '${bloc.exercices.length} exercice(s)',
+                                  if (bloc.tempsRecuperation.isNotEmpty)
+                                    'Récup ${bloc.tempsRecuperation}',
+                                ].join(' · '),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Modifier',
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.edit_outlined),
+                                    onPressed: () => _addOrEditBloc(
+                                      existing: bloc,
+                                      index: index,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Dupliquer à la suite',
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.copy_outlined),
+                                    onPressed: () => _duplicateBloc(index),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Supprimer',
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () => _deleteBloc(index),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          children: [
+                            BlocExercicesDetails(
+                              exercices: bloc.exercices,
+                              dense: true,
+                            ),
+                          ],
                         ),
                       );
                     }),
@@ -518,4 +617,17 @@ class _SessionPanelState extends State<SessionPanel> {
       ),
     );
   }
+}
+
+class _LoadSeanceChoice {
+  const _LoadSeanceChoice._(this.seance, this.isPlanifiee);
+
+  factory _LoadSeanceChoice.planifiee(Seance seance) =>
+      _LoadSeanceChoice._(seance, true);
+
+  factory _LoadSeanceChoice.template(Seance seance) =>
+      _LoadSeanceChoice._(seance, false);
+
+  final Seance seance;
+  final bool isPlanifiee;
 }

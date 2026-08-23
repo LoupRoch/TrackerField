@@ -30,8 +30,10 @@
 	<string>TrackerField a besoin de la caméra pour prendre la photo de profil des athlètes et des médias d'entraînement.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>TrackerField a besoin d'accéder à la photothèque pour ajouter des photos et vidéos d'entraînement.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>TrackerField peut utiliser le micro lors de l'enregistrement de vidéos d'entraînement.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>TrackerField utilise le micro pour la dictée vocale lors de la saisie des séances et l'enregistrement de vidéos.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>TrackerField utilise la reconnaissance vocale pour dicter distances, chronos, temps de récupération et notes.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

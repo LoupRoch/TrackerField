@@ -86,6 +86,18 @@ class ResolvedCircleAvatar extends StatelessWidget {
     return FutureBuilder<File?>(
       future: MediaStorageService.resolveFile(storedPath!),
       builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return CircleAvatar(
+            radius: radius,
+            backgroundColor: bg,
+            child: SizedBox(
+              width: radius,
+              height: radius,
+              child: const CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
         final file = snapshot.data;
         if (file == null) {
           return CircleAvatar(
@@ -94,12 +106,13 @@ class ResolvedCircleAvatar extends StatelessWidget {
             child: fallback ?? defaultFallback,
           );
         }
+
+        // Pas d'icône enfant : elle masquerait la photo.
         return CircleAvatar(
           radius: radius,
           backgroundColor: bg,
           backgroundImage: FileImage(file),
           onBackgroundImageError: (_, _) {},
-          child: fallback ?? defaultFallback,
         );
       },
     );

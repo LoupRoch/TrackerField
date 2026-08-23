@@ -259,18 +259,35 @@ class _AthleteDetailViewState extends State<AthleteDetailView> {
           : ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                Text(
-                  athlete.nom,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_ageOf(athlete)} ans · Licence ${athlete.numeroLicence}',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ResolvedCircleAvatar(
+                      storedPath: athlete.photoPath,
+                      radius: 40,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            athlete.nom,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Né le ${_formatDate(athlete.dateNaissance)} · Licence ${athlete.numeroLicence}',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 

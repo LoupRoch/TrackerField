@@ -1,8 +1,10 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/athlete.dart';
-import '../models/bloc_entrainement.dart';
+import '../models/bloc.dart';
 import '../models/chrono_athlete.dart';
+import '../models/competition.dart';
+import '../models/exercice.dart';
 import '../models/seance.dart';
 import '../models/test_performance.dart';
 
@@ -10,10 +12,12 @@ class DatabaseService {
   static const String _athletesBoxName = 'athletesBox';
   static const String _seancesBoxName = 'seancesBox';
   static const String _testsBoxName = 'testsBox';
+  static const String _competitionsBoxName = 'competitionsBox';
 
   Box<Athlete>? _athletesBox;
   Box<Seance>? _seancesBox;
   Box<TestPerformance>? _testsBox;
+  Box<Competition>? _competitionsBox;
 
   /// [path] is intended for tests; production uses [Hive.initFlutter].
   Future<void> init({String? path}) async {
@@ -40,8 +44,14 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(4)) {
       Hive.registerAdapter(TestPerformanceAdapter());
     }
-    if (!Hive.isAdapterRegistered(5)) {
-      Hive.registerAdapter(BlocEntrainementAdapter());
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(ExerciceAdapter());
+    }
+    if (!Hive.isAdapterRegistered(7)) {
+      Hive.registerAdapter(BlocAdapter());
+    }
+    if (!Hive.isAdapterRegistered(8)) {
+      Hive.registerAdapter(CompetitionAdapter());
     }
   }
 
@@ -54,8 +64,11 @@ class DatabaseService {
       _seancesBox = Hive.isBoxOpen(_seancesBoxName)
           ? Hive.box<Seance>(_seancesBoxName)
           : await Hive.openBox<Seance>(_seancesBoxName);
-      // Valide le schéma (ancien BlocCourse sinon).
-      _seancesBox!.values.toList();
+      for (final seance in _seancesBox!.values) {
+        for (final bloc in seance.blocs) {
+          bloc.exercices.length;
+        }
+      }
     } catch (_) {
       if (Hive.isBoxOpen(_seancesBoxName)) {
         await Hive.box(_seancesBoxName).close();
@@ -67,11 +80,18 @@ class DatabaseService {
     _testsBox = Hive.isBoxOpen(_testsBoxName)
         ? Hive.box<TestPerformance>(_testsBoxName)
         : await Hive.openBox<TestPerformance>(_testsBoxName);
+
+    _competitionsBox = Hive.isBoxOpen(_competitionsBoxName)
+        ? Hive.box<Competition>(_competitionsBoxName)
+        : await Hive.openBox<Competition>(_competitionsBoxName);
   }
 
   Future<void> ensureReady() async {
     _registerAdapters();
-    if (_athletesBox == null || _seancesBox == null || _testsBox == null) {
+    if (_athletesBox == null ||
+        _seancesBox == null ||
+        _testsBox == null ||
+        _competitionsBox == null) {
       await _openBoxes();
     }
   }
@@ -96,6 +116,14 @@ class DatabaseService {
     final box = _testsBox;
     if (box == null) {
       throw StateError('DatabaseService non initialisé (testsBox).');
+    }
+    return box;
+  }
+
+  Box<Competition> get _competitions {
+    final box = _competitionsBox;
+    if (box == null) {
+      throw StateError('DatabaseService non initialisé (competitionsBox).');
     }
     return box;
   }
@@ -137,15 +165,59 @@ class DatabaseService {
     await _seances.put(seance.id, seance);
   }
 
+  /// Séances réalisées (hors modèles et hors planifiées).
   List<Seance> getSeances() {
-    final seances = _seancesBox?.values.toList() ?? [];
+    final seances = _seancesBox?.values
+            .where((seance) => !seance.isTemplate && !seance.estPlanifiee)
+            .toList() ??
+        [];
     seances.sort((a, b) => b.date.compareTo(a.date));
     return seances;
   }
 
+  /// Modèles de séances prévues (templates).
+  List<Seance> getTemplates() {
+    final templates = _seancesBox?.values
+            .where((seance) => seance.isTemplate)
+            .toList() ??
+        [];
+    templates.sort(
+      (a, b) => a.titre.toLowerCase().compareTo(b.titre.toLowerCase()),
+    );
+    return templates;
+  }
+
+  /// Séances planifiées sur le calendrier prévisionnel.
+  List<Seance> getPlanifiees() {
+    final planifiees = _seancesBox?.values
+            .where((seance) => seance.estPlanifiee && !seance.isTemplate)
+            .toList() ??
+        [];
+    planifiees.sort((a, b) {
+      final da = a.datePrevue ?? a.date;
+      final db = b.datePrevue ?? b.date;
+      return da.compareTo(db);
+    });
+    return planifiees;
+  }
+
+  List<Seance> getPlanifieesForDay(DateTime day) {
+    final key = DateTime(day.year, day.month, day.day);
+    return getPlanifiees().where((seance) {
+      final d = seance.datePrevue;
+      if (d == null) return false;
+      return d.year == key.year && d.month == key.month && d.day == key.day;
+    }).toList();
+  }
+
   List<Seance> getSeancesByAthleteId(String athleteId) {
     final seances = _seancesBox?.values
-            .where((seance) => seance.athleteIds.contains(athleteId))
+            .where(
+              (seance) =>
+                  !seance.isTemplate &&
+                  !seance.estPlanifiee &&
+                  seance.athleteIds.contains(athleteId),
+            )
             .toList() ??
         [];
     seances.sort((a, b) => b.date.compareTo(a.date));
@@ -164,6 +236,31 @@ class DatabaseService {
   Future<void> deleteSeance(String id) async {
     await ensureReady();
     await _seances.delete(id);
+  }
+
+  Future<void> addCompetition(Competition competition) async {
+    await ensureReady();
+    await _competitions.put(competition.id, competition);
+  }
+
+  Future<void> updateCompetition(Competition competition) async {
+    await ensureReady();
+    await _competitions.put(competition.id, competition);
+  }
+
+  Future<void> deleteCompetition(String id) async {
+    await ensureReady();
+    await _competitions.delete(id);
+  }
+
+  List<Competition> getCompetitions() {
+    final list = _competitionsBox?.values.toList() ?? [];
+    list.sort((a, b) => a.dateDebut.compareTo(b.dateDebut));
+    return list;
+  }
+
+  List<Competition> getCompetitionsForDay(DateTime day) {
+    return getCompetitions().where((c) => c.coversDay(day)).toList();
   }
 
   Future<void> addTest(TestPerformance test) async {
@@ -191,27 +288,30 @@ class DatabaseService {
     return tests;
   }
 
-  /// Distances déjà saisies (blocs Course).
-  List<String> getDistinctDistances() => _distinctBlocValues(
-        (bloc) => bloc.isCourse ? bloc.distance : null,
+  /// Distances de course déjà saisies.
+  List<String> getDistinctDistances() => _distinctExerciceValues(
+        (exercice) => exercice.distance,
       );
 
-  /// Noms d'exercices déjà saisis (Musculation / Saut).
-  List<String> getDistinctNomExercices() => _distinctBlocValues(
-        (bloc) => !bloc.isCourse ? bloc.nomExercice : null,
+  /// Noms d'exercices (Muscu / Saut).
+  List<String> getDistinctNomExercices() => _distinctExerciceValues(
+        (exercice) => exercice.nom,
       );
 
-  /// Temps de récupération déjà saisis.
-  List<String> getDistinctTempsRecuperation() => _distinctBlocValues(
-        (bloc) => bloc.tempsRecuperation,
+  /// Temps de récupération déjà saisis (exercices).
+  List<String> getDistinctTempsRecuperation() => _distinctExerciceValues(
+        (exercice) => exercice.tempsRecuperation,
       );
 
-  List<String> _distinctBlocValues(String? Function(BlocEntrainement) pick) {
+  List<String> _distinctExerciceValues(String? Function(Exercice) pick) {
     final values = <String>{};
-    for (final seance in getSeances()) {
+    final all = _seancesBox?.values ?? const Iterable.empty();
+    for (final seance in all) {
       for (final bloc in seance.blocs) {
-        final raw = pick(bloc)?.trim();
-        if (raw != null && raw.isNotEmpty) values.add(raw);
+        for (final exercice in bloc.exercices) {
+          final raw = pick(exercice)?.trim();
+          if (raw != null && raw.isNotEmpty) values.add(raw);
+        }
       }
     }
     return values.toList()..sort();

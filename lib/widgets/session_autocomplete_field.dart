@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../utils/dictation_input_mode.dart';
+import 'dictation_form_scope.dart';
 
 class SessionAutocompleteField extends StatefulWidget {
   const SessionAutocompleteField({
@@ -10,6 +14,9 @@ class SessionAutocompleteField extends StatefulWidget {
     this.validator,
     this.prefixIcon,
     this.suffixText,
+    this.keyboardType,
+    this.inputFormatters,
+    this.dictationMode,
   });
 
   final String labelText;
@@ -19,6 +26,9 @@ class SessionAutocompleteField extends StatefulWidget {
   final String? Function(String?)? validator;
   final Widget? prefixIcon;
   final String? suffixText;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final DictationInputMode? dictationMode;
 
   @override
   State<SessionAutocompleteField> createState() =>
@@ -30,13 +40,31 @@ class SessionAutocompleteFieldState extends State<SessionAutocompleteField> {
   TextEditingController? _controller;
   FocusNode? _focusNode;
   VoidCallback? _focusListener;
+  DictationTarget? _dictationTarget;
+  DictationFormScopeState? _scope;
 
   String get value => _controller?.text.trim() ?? widget.initialValue.trim();
+
+  void setValue(String text) {
+    final controller = _controller;
+    if (controller == null) return;
+    controller.text = text;
+    controller.selection = TextSelection.collapsed(offset: text.length);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scope = DictationFormScopeState.of(context);
+  }
 
   @override
   void dispose() {
     if (_focusNode != null && _focusListener != null) {
       _focusNode!.removeListener(_focusListener!);
+    }
+    if (_dictationTarget != null) {
+      _scope?.unregisterTarget(_dictationTarget!);
     }
     super.dispose();
   }
@@ -49,9 +77,20 @@ class SessionAutocompleteFieldState extends State<SessionAutocompleteField> {
       _focusNode!.removeListener(_focusListener!);
     }
     _focusNode = focusNode;
+
+    if (widget.dictationMode != null) {
+      _dictationTarget ??= DictationTarget(
+        focusNode: focusNode,
+        mode: widget.dictationMode!,
+        setText: setValue,
+      );
+    }
+
     _focusListener = () {
+      if (focusNode.hasFocus && _dictationTarget != null) {
+        _scope?.notifyFocus(_dictationTarget!);
+      }
       if (!focusNode.hasFocus || widget.suggestions.isEmpty) return;
-      // Force Autocomplete à recalculer les options au focus.
       final text = controller.text;
       controller.value = TextEditingValue(
         text: text,
@@ -59,6 +98,26 @@ class SessionAutocompleteFieldState extends State<SessionAutocompleteField> {
       );
     };
     focusNode.addListener(_focusListener!);
+  }
+
+  Widget? _buildSuffix() {
+    if (widget.dictationMode == null || _dictationTarget == null) {
+      return null;
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.suffixText != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Text(
+              widget.suffixText!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        DictationMicButton(target: _dictationTarget!, compact: true),
+      ],
+    );
   }
 
   @override
@@ -89,11 +148,15 @@ class SessionAutocompleteFieldState extends State<SessionAutocompleteField> {
           controller: textEditingController,
           focusNode: focusNode,
           onFieldSubmitted: (_) => onFieldSubmitted(),
+          keyboardType: widget.keyboardType,
+          inputFormatters: widget.inputFormatters,
           decoration: InputDecoration(
             labelText: widget.labelText,
             hintText: widget.hintText,
             prefixIcon: widget.prefixIcon,
-            suffixText: widget.suffixText,
+            suffixText:
+                widget.dictationMode == null ? widget.suffixText : null,
+            suffixIcon: _buildSuffix(),
             border: const OutlineInputBorder(),
           ),
           validator: widget.validator,

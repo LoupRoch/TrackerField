@@ -1,6 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'bloc_entrainement.dart';
+import 'bloc.dart';
 
 part 'seance.g.dart';
 
@@ -19,14 +19,26 @@ class Seance extends HiveObject {
   List<String> athleteIds;
 
   @HiveField(4)
-  List<BlocEntrainement> blocs;
+  List<Bloc> blocs;
+
+  @HiveField(5, defaultValue: false)
+  bool isTemplate;
+
+  @HiveField(6, defaultValue: false)
+  bool estPlanifiee;
+
+  @HiveField(7)
+  DateTime? datePrevue;
 
   Seance({
     String? id,
     required this.titre,
     DateTime? date,
     List<String>? athleteIds,
-    List<BlocEntrainement>? blocs,
+    List<Bloc>? blocs,
+    this.isTemplate = false,
+    this.estPlanifiee = false,
+    this.datePrevue,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         date = date ?? DateTime.now(),
         athleteIds = athleteIds ?? [],

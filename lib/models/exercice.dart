@@ -2,20 +2,22 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'chrono_athlete.dart';
 
-part 'bloc_entrainement.g.dart';
+part 'exercice.g.dart';
 
-@HiveType(typeId: 5)
-class BlocEntrainement extends HiveObject {
+@HiveType(typeId: 6)
+class Exercice extends HiveObject {
   @HiveField(0)
   final String id;
 
+  /// Course, Muscu ou Saut.
   @HiveField(1)
-  String typeBloc;
+  String type;
 
+  /// Nom de l'exercice (Muscu / Saut).
   @HiveField(2)
-  String? nomExercice;
+  String? nom;
 
-  /// Distance de la course (ex: 200m). Null pour muscu/saut.
+  /// Distance de course (ex: 200m).
   @HiveField(3)
   String? distance;
 
@@ -28,14 +30,14 @@ class BlocEntrainement extends HiveObject {
   @HiveField(6)
   List<String> mediaPaths;
 
-  /// Chronos par athlète (blocs Course uniquement).
+  /// Chronos par athlète (Course uniquement).
   @HiveField(7)
   List<ChronoAthlete> chronos;
 
-  BlocEntrainement({
+  Exercice({
     String? id,
-    required this.typeBloc,
-    this.nomExercice,
+    required this.type,
+    this.nom,
     this.distance,
     required this.tempsRecuperation,
     this.notes = '',
@@ -45,23 +47,23 @@ class BlocEntrainement extends HiveObject {
         mediaPaths = mediaPaths ?? [],
         chronos = chronos ?? [];
 
-  static const types = ['Course', 'Musculation', 'Saut'];
+  static const types = ['Course', 'Muscu', 'Saut'];
 
-  bool get isCourse => typeBloc == 'Course';
+  bool get isCourse => type == 'Course';
 
   String get titreAffiche {
     if (isCourse) {
       final dist = distance?.isNotEmpty == true ? distance! : '—';
       return 'Course · $dist · Récup $tempsRecuperation';
     }
-    final exo = nomExercice?.isNotEmpty == true ? nomExercice! : typeBloc;
-    return '$typeBloc · $exo · Récup $tempsRecuperation';
+    final exo = nom?.isNotEmpty == true ? nom! : type;
+    return '$type · $exo · Récup $tempsRecuperation';
   }
 
-  BlocEntrainement copy() => BlocEntrainement(
-        id: id,
-        typeBloc: typeBloc,
-        nomExercice: nomExercice,
+  Exercice copy({bool asNew = false}) => Exercice(
+        id: asNew ? null : id,
+        type: type,
+        nom: nom,
         distance: distance,
         tempsRecuperation: tempsRecuperation,
         notes: notes,

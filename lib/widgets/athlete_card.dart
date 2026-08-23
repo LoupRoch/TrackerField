@@ -36,117 +36,146 @@ class AthleteCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 260 ||
+                constraints.maxWidth < 280;
+            final avatarRadius = compact ? 24.0 : 32.0;
+            final buttonHeight = compact ? 44.0 : 56.0;
+            final pad = compact ? 12.0 : 20.0;
+            final gap = compact ? 10.0 : 16.0;
+
+            return Padding(
+              padding: EdgeInsets.all(pad),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ResolvedCircleAvatar(
-                    storedPath: athlete.photoPath,
-                    radius: 32,
+                  Row(
+                    children: [
+                      ResolvedCircleAvatar(
+                        storedPath: athlete.photoPath,
+                        radius: avatarRadius,
+                      ),
+                      SizedBox(width: compact ? 12 : 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              athlete.nom,
+                              style: (compact
+                                      ? theme.textTheme.titleLarge
+                                      : theme.textTheme.headlineSmall)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$_age ans',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              'Licence ${athlete.numeroLicence}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const Spacer(flex: 1),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 12 : 16,
+                      vertical: compact ? 8 : 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
                       children: [
+                        Icon(
+                          Icons.cake_outlined,
+                          size: compact ? 20 : 24,
+                          color: colorScheme.onTertiaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Granolas dûs',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: colorScheme.onTertiaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         Text(
-                          athlete.nom,
-                          style: theme.textTheme.headlineSmall?.copyWith(
+                          '${athlete.detteGateau}',
+                          style: (compact
+                                  ? theme.textTheme.titleLarge
+                                  : theme.textTheme.headlineMedium)
+                              ?.copyWith(
+                            color: colorScheme.onTertiaryContainer,
                             fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$_age ans',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          'Licence ${athlete.numeroLicence}',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.cake_outlined,
-                      color: colorScheme.onTertiaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Granolas dûs',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onTertiaryContainer,
-                          fontWeight: FontWeight.w600,
+                  SizedBox(height: gap),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: athlete.detteGateau > 0
+                              ? () =>
+                                  provider.decrementDetteGateau(athlete.id)
+                              : null,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: Size.fromHeight(buttonHeight),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 8 : 16,
+                            ),
+                            textStyle: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          child: const Text('-1 granola'),
                         ),
                       ),
-                    ),
-                    Text(
-                      '${athlete.detteGateau}',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: colorScheme.onTertiaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: athlete.detteGateau > 0
-                          ? () => provider.decrementDetteGateau(athlete.id)
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(56),
-                        textStyle: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      SizedBox(width: compact ? 8 : 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () =>
+                              provider.incrementDetteGateau(athlete.id),
+                          style: FilledButton.styleFrom(
+                            minimumSize: Size.fromHeight(buttonHeight),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 8 : 16,
+                            ),
+                            textStyle: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          child: const Text('+1 granola'),
                         ),
                       ),
-                      child: const Text('-1 cookie'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () =>
-                          provider.incrementDetteGateau(athlete.id),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(56),
-                        textStyle: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      child: const Text('+1 cookie'),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

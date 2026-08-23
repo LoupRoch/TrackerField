@@ -44,15 +44,17 @@ class ExportService {
 
     final seancesSheet = excel['Séances'];
     seancesSheet.appendRow([
-      TextCellValue('Titre'),
+      TextCellValue('Titre Séance'),
       TextCellValue('Date'),
-      TextCellValue('Type bloc'),
-      TextCellValue('Distance / Exercice'),
+      TextCellValue('Nom du Bloc'),
+      TextCellValue('Récup Bloc'),
+      TextCellValue('Type Exercice'),
+      TextCellValue('Distance / Nom'),
       TextCellValue('Temps récupération'),
-      TextCellValue('Athlète'),
-      TextCellValue('Chrono'),
       TextCellValue('Notes'),
       TextCellValue('Médias'),
+      TextCellValue('Chronos'),
+      TextCellValue('Athlètes'),
     ]);
 
     for (final seance in _databaseService.getSeances()) {
@@ -60,6 +62,9 @@ class ExportService {
           '${seance.date.day.toString().padLeft(2, '0')}/'
           '${seance.date.month.toString().padLeft(2, '0')}/'
           '${seance.date.year}';
+      final athleteNames = seance.athleteIds
+          .map((id) => athletesById[id]?.nom ?? id)
+          .join(', ');
 
       if (seance.blocs.isEmpty) {
         seancesSheet.appendRow([
@@ -72,45 +77,55 @@ class ExportService {
           TextCellValue(''),
           TextCellValue(''),
           TextCellValue(''),
+          TextCellValue(''),
+          TextCellValue(athleteNames),
         ]);
         continue;
       }
 
       for (final bloc in seance.blocs) {
-        final detail = bloc.isCourse
-            ? (bloc.distance ?? '')
-            : (bloc.nomExercice ?? '');
-
-        if (bloc.isCourse && bloc.chronos.isNotEmpty) {
-          for (final chrono in bloc.chronos) {
-            final athleteName =
-                athletesById[chrono.athleteId]?.nom ?? chrono.athleteId;
-            seancesSheet.appendRow([
-              TextCellValue(seance.titre),
-              TextCellValue(dateLabel),
-              TextCellValue(bloc.typeBloc),
-              TextCellValue(detail),
-              TextCellValue(bloc.tempsRecuperation),
-              TextCellValue(athleteName),
-              TextCellValue(chrono.chrono),
-              TextCellValue(bloc.notes),
-              IntCellValue(bloc.mediaPaths.length),
-            ]);
-          }
+        if (bloc.exercices.isEmpty) {
+          seancesSheet.appendRow([
+            TextCellValue(seance.titre),
+            TextCellValue(dateLabel),
+            TextCellValue(bloc.nom),
+            TextCellValue(bloc.tempsRecuperation),
+            TextCellValue(''),
+            TextCellValue(''),
+            TextCellValue(''),
+            TextCellValue(''),
+            TextCellValue(''),
+            TextCellValue(''),
+            TextCellValue(athleteNames),
+          ]);
           continue;
         }
 
-        seancesSheet.appendRow([
-          TextCellValue(seance.titre),
-          TextCellValue(dateLabel),
-          TextCellValue(bloc.typeBloc),
-          TextCellValue(detail),
-          TextCellValue(bloc.tempsRecuperation),
-          TextCellValue(''),
-          TextCellValue(''),
-          TextCellValue(bloc.notes),
-          IntCellValue(bloc.mediaPaths.length),
-        ]);
+        for (final exercice in bloc.exercices) {
+          final label = exercice.isCourse
+              ? (exercice.distance ?? '')
+              : (exercice.nom ?? '');
+          final chronosLabel = exercice.chronos
+              .map((c) {
+                final name = athletesById[c.athleteId]?.nom ?? c.athleteId;
+                return '$name: ${c.chrono}';
+              })
+              .join(' | ');
+
+          seancesSheet.appendRow([
+            TextCellValue(seance.titre),
+            TextCellValue(dateLabel),
+            TextCellValue(bloc.nom),
+            TextCellValue(bloc.tempsRecuperation),
+            TextCellValue(exercice.type),
+            TextCellValue(label),
+            TextCellValue(exercice.tempsRecuperation),
+            TextCellValue(exercice.notes),
+            IntCellValue(exercice.mediaPaths.length),
+            TextCellValue(chronosLabel),
+            TextCellValue(athleteNames),
+          ]);
+        }
       }
     }
 

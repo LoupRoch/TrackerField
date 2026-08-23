@@ -400,7 +400,7 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
           children: [
             OutlinedButton(
               onPressed: () => _seekBy(-_frameDuration),
-              child: const Text('⏪ 1 Frame'),
+              child: const Text('⏪ -1 Image'),
             ),
             IconButton.filled(
               onPressed: _togglePlayPause,
@@ -411,7 +411,7 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
             ),
             OutlinedButton(
               onPressed: () => _seekBy(_frameDuration),
-              child: const Text('Avancer 1 Frame ⏩'),
+              child: const Text('+1 Image ⏩'),
             ),
             if (widget.onFullscreen != null)
               IconButton.outlined(

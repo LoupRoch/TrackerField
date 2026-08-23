@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'media_storage_service.dart';
@@ -7,7 +8,39 @@ Future<String?> persistAthletePhoto(String sourcePath) async {
   return MediaStorageService.persist(sourcePath);
 }
 
-/// Propose caméra ou galerie, puis persiste la photo localement.
+Future<String?> _cropProfilePhoto(String sourcePath) async {
+  final cropped = await ImageCropper().cropImage(
+    sourcePath: sourcePath,
+    aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+    compressFormat: ImageCompressFormat.jpg,
+    compressQuality: 90,
+    maxWidth: 1024,
+    maxHeight: 1024,
+    uiSettings: [
+      AndroidUiSettings(
+        toolbarTitle: 'Rogner la photo',
+        toolbarColor: Colors.deepOrange,
+        toolbarWidgetColor: Colors.white,
+        initAspectRatio: CropAspectRatioPreset.square,
+        lockAspectRatio: true,
+        cropStyle: CropStyle.circle,
+        hideBottomControls: false,
+      ),
+      IOSUiSettings(
+        title: 'Rogner la photo',
+        aspectRatioLockEnabled: true,
+        resetAspectRatioEnabled: false,
+        aspectRatioPickerButtonHidden: true,
+        cropStyle: CropStyle.circle,
+        doneButtonTitle: 'Valider',
+        cancelButtonTitle: 'Annuler',
+      ),
+    ],
+  );
+  return cropped?.path;
+}
+
+/// Propose caméra ou galerie, rogne la photo, puis la persiste localement.
 Future<String?> pickAndPersistAthletePhoto(BuildContext context) async {
   final source = await showModalBottomSheet<ImageSource>(
     context: context,
@@ -35,11 +68,15 @@ Future<String?> pickAndPersistAthletePhoto(BuildContext context) async {
     final image = await picker.pickImage(
       source: source,
       preferredCameraDevice: CameraDevice.front,
-      imageQuality: 85,
+      imageQuality: 95,
       requestFullMetadata: false,
     );
     if (image == null) return null;
-    return await persistAthletePhoto(image.path);
+
+    final croppedPath = await _cropProfilePhoto(image.path);
+    if (croppedPath == null) return null;
+
+    return await persistAthletePhoto(croppedPath);
   } catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

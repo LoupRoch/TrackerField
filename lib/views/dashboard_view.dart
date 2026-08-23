@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'athletes_view.dart';
-import 'historique_seances_view.dart';
+import 'calendrier_view.dart';
 import 'live_session_view.dart';
 
 class DashboardView extends StatefulWidget {
@@ -13,12 +13,12 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   int _currentIndex = 0;
-  final _historiqueKey = GlobalKey<HistoriqueSeancesViewState>();
+  final _calendrierKey = GlobalKey<CalendrierViewState>();
 
   late final List<Widget> _pages = [
     const AthletesView(),
     const LiveSessionView(),
-    HistoriqueSeancesView(key: _historiqueKey),
+    CalendrierView(key: _calendrierKey),
   ];
 
   @override
@@ -29,11 +29,12 @@ class _DashboardViewState extends State<DashboardView> {
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
           if (index == 2) {
-            _historiqueKey.currentState?.reload();
+            _calendrierKey.currentState?.reload();
           }
         },
         items: const [
@@ -46,8 +47,8 @@ class _DashboardViewState extends State<DashboardView> {
             label: 'Séances',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Historique',
+            icon: Icon(Icons.calendar_month),
+            label: 'Calendrier',
           ),
         ],
       ),

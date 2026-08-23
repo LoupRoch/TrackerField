@@ -46,19 +46,28 @@ class AthletesView extends StatelessWidget {
             )
           : LayoutBuilder(
               builder: (context, constraints) {
-                final crossAxisCount = constraints.maxWidth >= 1200
+                final width = constraints.maxWidth;
+                final crossAxisCount = width >= 1200
                     ? 4
-                    : constraints.maxWidth >= 800
+                    : width >= 800
                         ? 3
-                        : 2;
+                        : width >= 560
+                            ? 2
+                            : 1;
+                // Hauteur fixe : évite le bottom overflow en portrait téléphone.
+                final mainAxisExtent = crossAxisCount == 1
+                    ? 220.0
+                    : width >= 800
+                        ? 280.0
+                        : 250.0;
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(crossAxisCount == 1 ? 16 : 24),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 0.95,
+                    crossAxisSpacing: crossAxisCount == 1 ? 12 : 20,
+                    mainAxisSpacing: crossAxisCount == 1 ? 12 : 20,
+                    mainAxisExtent: mainAxisExtent,
                   ),
                   itemCount: athletes.length,
                   itemBuilder: (context, index) {

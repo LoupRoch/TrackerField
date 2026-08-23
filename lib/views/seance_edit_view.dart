@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/bloc_entrainement.dart';
+import '../models/bloc.dart';
 import '../models/seance.dart';
 import '../services/athlete_provider.dart';
 import '../services/database_service.dart';
-import '../widgets/bloc_entrainement_dialog.dart';
-import '../widgets/media_gallery_dialog.dart';
+import '../widgets/bloc_dialog.dart';
+import '../widgets/bloc_exercices_details.dart';
 
 class SeanceEditView extends StatefulWidget {
   const SeanceEditView({super.key, required this.seanceId});
@@ -25,7 +25,7 @@ class _SeanceEditViewState extends State<SeanceEditView> {
   late TextEditingController _titreController;
   late DateTime _date;
   late List<String> _athleteIds;
-  late List<BlocEntrainement> _blocs;
+  late List<Bloc> _blocs;
 
   @override
   void initState() {
@@ -139,8 +139,8 @@ class _SeanceEditViewState extends State<SeanceEditView> {
     }
   }
 
-  Future<void> _editBloc({BlocEntrainement? existing, int? index}) async {
-    final result = await showBlocEntrainementDialog(
+  Future<void> _editBloc({Bloc? existing, int? index}) async {
+    final result = await showBlocDialog(
       context,
       initial: existing,
       athleteIds: _athleteIds,
@@ -153,6 +153,12 @@ class _SeanceEditViewState extends State<SeanceEditView> {
       } else {
         _blocs[index] = result;
       }
+    });
+  }
+
+  void _duplicateBloc(int index) {
+    setState(() {
+      _blocs.insert(index + 1, _blocs[index].copy(asNew: true));
     });
   }
 
@@ -179,6 +185,9 @@ class _SeanceEditViewState extends State<SeanceEditView> {
         date: _date,
         athleteIds: List<String>.from(_athleteIds),
         blocs: _blocs.map((b) => b.copy()).toList(),
+        isTemplate: _seance!.isTemplate,
+        estPlanifiee: _seance!.estPlanifiee,
+        datePrevue: _seance!.datePrevue,
       );
 
       await context.read<DatabaseService>().updateSeance(updated);
@@ -347,58 +356,50 @@ class _SeanceEditViewState extends State<SeanceEditView> {
           else
             ...List.generate(_blocs.length, (index) {
               final bloc = _blocs[index];
-              final chronosLabel = bloc.chronos
-                  .map((c) {
-                    final nom = allAthletes
-                            .where((a) => a.id == c.athleteId)
-                            .map((a) => a.nom)
-                            .firstOrNull ??
-                        c.athleteId;
-                    return '$nom: ${c.chrono}';
-                  })
-                  .join(' · ');
               return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ExpansionTile(
                   leading: CircleAvatar(child: Text('${index + 1}')),
-                  title: Text(bloc.titreAffiche),
-                  subtitle: Text(
-                    [
-                      bloc.typeBloc,
-                      if (chronosLabel.isNotEmpty) chronosLabel,
-                      if (bloc.notes.isNotEmpty) bloc.notes,
-                    ].join('\n'),
-                  ),
-                  isThreeLine:
-                      chronosLabel.isNotEmpty || bloc.notes.isNotEmpty,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  title: Text(bloc.nom),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (bloc.mediaPaths.isNotEmpty)
-                        IconButton(
-                          tooltip: 'Voir les médias',
-                          icon: Badge(
-                            label: Text('${bloc.mediaPaths.length}'),
-                            child: const Icon(Icons.perm_media),
-                          ),
-                          onPressed: () => showMediaGalleryDialog(
-                            context,
-                            bloc.mediaPaths,
-                          ),
-                        ),
-                      IconButton(
-                        tooltip: 'Modifier',
-                        icon: const Icon(Icons.edit),
-                        onPressed: () =>
-                            _editBloc(existing: bloc, index: index),
+                      Text(
+                        [
+                          '${bloc.exercices.length} exercice(s)',
+                          if (bloc.tempsRecuperation.isNotEmpty)
+                            'Récup ${bloc.tempsRecuperation}',
+                        ].join(' · '),
                       ),
-                      IconButton(
-                        tooltip: 'Supprimer',
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _deleteBloc(index),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Modifier',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.edit),
+                            onPressed: () =>
+                                _editBloc(existing: bloc, index: index),
+                          ),
+                          IconButton(
+                            tooltip: 'Dupliquer à la suite',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.copy_outlined),
+                            onPressed: () => _duplicateBloc(index),
+                          ),
+                          IconButton(
+                            tooltip: 'Supprimer',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _deleteBloc(index),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  children: [
+                    BlocExercicesDetails(exercices: bloc.exercices),
+                  ],
                 ),
               );
             }),
