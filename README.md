@@ -3,7 +3,7 @@
 Application Flutter locale (offline-first) destinée aux entraîneurs d'athlétisme.
 Elle est conçue en priorité pour tablette Android en mode paysage, avec une interface adaptée aussi au téléphone.
 
-TrackerField permet de gérer les athlètes, de conduire des séances sur le terrain, de planifier l'entraînement et les compétitions, et d'exporter ou réimporter les données en Excel.
+TrackerField permet de gérer les athlètes, de conduire des séances sur le terrain, de planifier l'entraînement et les compétitions, et d'exporter ou réimporter les données via un fichier Excel.
 
 ![Preview](docs/preview.png)
 
@@ -32,7 +32,7 @@ TrackerField permet de gérer les athlètes, de conduire des séances sur le ter
 ### Dictée vocale
 
 - Saisie vocale sur les champs de formulaire (distance, récupération, notes, chronos)
-- Activation possible via le micro du champ ou un double appui volume +
+- Activation possible via le micro du champ ou un double appui sur le bouton volume +
 - Modes de normalisation adaptés (chiffres, virgule, temps)
 
 ### Calendrier
@@ -54,7 +54,7 @@ TrackerField permet de gérer les athlètes, de conduire des séances sur le ter
 ### Import / export Excel
 
 - Export : Athlètes, Séances (réalisées, modèles, planifiées), Compétitions, Tests
-- Import au même format depuis les paramètres
+- Import de données au même format Excel que l'export
 - Mise à jour des athlètes existants (même nom / licence)
 - Ajout des séances, compétitions et tests
 - Les chemins média absents sur l'appareil ne sont pas réimportés
@@ -104,20 +104,6 @@ L'APK est généré dans :
 ```
 build/app/outputs/flutter-apk/app-release.apk
 ```
-
-## Tests
-
-```bash
-# Round-trip export / import Excel
-flutter test test/excel_roundtrip_test.dart
-
-# Captures de présentation (écrit dans docs/presentation/)
-flutter test test/presentation_screenshots_test.dart
-```
-
-## Captures
-
-Des captures d'écran de présentation sont disponibles dans [`docs/presentation/`](docs/presentation/).
 
 ## Plateformes
 
