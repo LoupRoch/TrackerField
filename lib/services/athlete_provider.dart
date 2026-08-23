@@ -24,6 +24,11 @@ class AthleteProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refresh() async {
+    await _databaseService.ensureReady();
+    _loadAthletes();
+  }
+
   Future<void> addAthlete({
     required String nom,
     required String numeroLicence,

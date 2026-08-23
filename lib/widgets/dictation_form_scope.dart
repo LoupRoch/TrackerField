@@ -33,9 +33,11 @@ class DictationFormScope extends StatefulWidget {
 
 class DictationFormScopeState extends State<DictationFormScope> {
   DictationTarget? _activeTarget;
+  DictationTarget? _dictatingTarget;
   var _dictating = false;
 
   bool get isDictating => _dictating;
+  DictationTarget? get dictatingTarget => _dictatingTarget;
 
   static DictationFormScopeState? of(BuildContext context) {
     return context.findAncestorStateOfType<DictationFormScopeState>();
@@ -57,26 +59,38 @@ class DictationFormScopeState extends State<DictationFormScope> {
 
   Future<void> dictateTo(DictationTarget target) async {
     if (_dictating) return;
-    setState(() => _dictating = true);
+    setState(() {
+      _dictating = true;
+      _dictatingTarget = target;
+    });
     _activeTarget = target;
 
     try {
-      final raw = await DictationService.instance.listen();
+      final result = await DictationService.instance.listen();
       if (!mounted) return;
-      if (raw == null || raw.trim().isEmpty) {
-        if (DictationService.instance.isUnavailable) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Dictée indisponible. Relance l\'app (stop + run) pour charger le plugin micro.',
-              ),
+      if (!result.isOk) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.errorMessage ?? 'Dictée indisponible.',
             ),
-          );
-        }
+            duration: const Duration(seconds: 5),
+          ),
+        );
         return;
       }
-      final normalized = SpeechTextNormalizer.normalize(raw, target.mode);
-      if (normalized.isEmpty) return;
+      final normalized =
+          SpeechTextNormalizer.normalize(result.text!, target.mode);
+      if (normalized.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Texte reconnu mais non convertible pour ce champ.',
+            ),
+          ),
+        );
+        return;
+      }
       target.setText(normalized);
     } catch (_) {
       if (!mounted) return;
@@ -84,7 +98,12 @@ class DictationFormScopeState extends State<DictationFormScope> {
         const SnackBar(content: Text('Impossible de démarrer la dictée.')),
       );
     } finally {
-      if (mounted) setState(() => _dictating = false);
+      if (mounted) {
+        setState(() {
+          _dictating = false;
+          _dictatingTarget = null;
+        });
+      }
     }
   }
 
@@ -111,6 +130,7 @@ class DictationFormScopeState extends State<DictationFormScope> {
     return _DictationScopeInherited(
       scope: this,
       isDictating: _dictating,
+      dictatingTarget: _dictatingTarget,
       child: widget.child,
     );
   }
@@ -120,15 +140,19 @@ class _DictationScopeInherited extends InheritedWidget {
   const _DictationScopeInherited({
     required this.scope,
     required this.isDictating,
+    required this.dictatingTarget,
     required super.child,
   });
 
   final DictationFormScopeState scope;
   final bool isDictating;
+  final DictationTarget? dictatingTarget;
 
   @override
   bool updateShouldNotify(_DictationScopeInherited oldWidget) {
-    return scope != oldWidget.scope || isDictating != oldWidget.isDictating;
+    return scope != oldWidget.scope ||
+        isDictating != oldWidget.isDictating ||
+        !identical(dictatingTarget, oldWidget.dictatingTarget);
   }
 }
 
@@ -148,16 +172,18 @@ class DictationMicButton extends StatelessWidget {
     final inherited = context
         .dependOnInheritedWidgetOfExactType<_DictationScopeInherited>();
     final scope = inherited?.scope;
-    final dictating = inherited?.isDictating ?? false;
+    final busyAnywhere = inherited?.isDictating ?? false;
+    final busyHere =
+        busyAnywhere && identical(inherited?.dictatingTarget, target);
 
     return IconButton(
       tooltip: 'Dictée vocale (2× volume +)',
       visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
       iconSize: compact ? 20 : 24,
-      onPressed: scope == null || dictating
+      onPressed: scope == null || busyAnywhere
           ? null
           : () => scope.dictateTo(target),
-      icon: dictating
+      icon: busyHere
           ? const SizedBox(
               width: 20,
               height: 20,

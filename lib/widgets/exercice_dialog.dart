@@ -12,6 +12,7 @@ import '../utils/dictation_input_mode.dart';
 import '../utils/exercise_input_formatters.dart';
 import 'dictatable_text_form_field.dart';
 import 'dictation_form_scope.dart';
+import 'recovery_time_field.dart';
 import 'session_autocomplete_field.dart';
 
 Future<Exercice?> showExerciceDialog(
@@ -64,7 +65,7 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
   final _picker = ImagePicker();
   final _distanceKey = GlobalKey<SessionAutocompleteFieldState>();
   final _nomKey = GlobalKey<SessionAutocompleteFieldState>();
-  final _recupKey = GlobalKey<SessionAutocompleteFieldState>();
+  final _recupKey = GlobalKey<RecoveryTimeFieldState>();
   late final TextEditingController _notesController;
   final Map<String, TextEditingController> _chronoControllers = {};
 
@@ -151,6 +152,9 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final recupError = _recupKey.currentState?.validate();
+    if (recupError != null) return;
 
     final recup = _recupKey.currentState?.value ?? '';
     if (recup.isEmpty) return;
@@ -268,22 +272,10 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
                     },
                   ),
                 const SizedBox(height: 12),
-                SessionAutocompleteField(
+                RecoveryTimeField(
                   key: _recupKey,
-                  labelText: 'Temps de récupération',
-                  hintText: 'ex: 1:00',
-                  suggestions: widget.recupSuggestions,
                   initialValue: initial?.tempsRecuperation ?? '',
-                  suffixText: 'min:sec',
-                  keyboardType: TextInputType.datetime,
-                  inputFormatters: ExerciseInputFormatters.timeColon,
-                  dictationMode: DictationInputMode.timeColon,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Requis';
-                    }
-                    return null;
-                  },
+                  required: true,
                 ),
                 if (!widget.templateMode) ...[
                   const SizedBox(height: 12),

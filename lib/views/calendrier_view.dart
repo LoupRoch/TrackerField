@@ -354,6 +354,7 @@ class CalendrierViewState extends State<CalendrierView> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_calendrier',
         onPressed: _showAddMenu,
         icon: const Icon(Icons.add),
         label: const Text('Ajouter'),

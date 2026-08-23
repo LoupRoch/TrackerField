@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/bloc.dart';
+import '../models/exercice.dart';
 import '../models/seance.dart';
 import '../services/athlete_provider.dart';
 import '../services/database_service.dart';
 import '../widgets/bloc_dialog.dart';
 import '../widgets/bloc_exercices_details.dart';
+import '../widgets/exercice_dialog.dart';
 
 class SeanceEditView extends StatefulWidget {
   const SeanceEditView({super.key, required this.seanceId});
@@ -159,6 +161,34 @@ class _SeanceEditViewState extends State<SeanceEditView> {
   void _duplicateBloc(int index) {
     setState(() {
       _blocs.insert(index + 1, _blocs[index].copy(asNew: true));
+    });
+  }
+
+  Future<void> _editExerciceInBloc({
+    required int blocIndex,
+    required Exercice exercice,
+  }) async {
+    final bloc = _blocs[blocIndex];
+    final exerciceIndex =
+        bloc.exercices.indexWhere((e) => e.id == exercice.id);
+    if (exerciceIndex < 0) return;
+
+    final result = await showExerciceDialog(
+      context,
+      initial: exercice,
+      athleteIds: _athleteIds,
+    );
+    if (result == null || !mounted) return;
+
+    setState(() {
+      final updated = List<Exercice>.from(bloc.exercices);
+      updated[exerciceIndex] = result;
+      _blocs[blocIndex] = Bloc(
+        id: bloc.id,
+        nom: bloc.nom,
+        tempsRecuperation: bloc.tempsRecuperation,
+        exercices: updated,
+      );
     });
   }
 
@@ -398,7 +428,13 @@ class _SeanceEditViewState extends State<SeanceEditView> {
                     ],
                   ),
                   children: [
-                    BlocExercicesDetails(exercices: bloc.exercices),
+                    BlocExercicesDetails(
+                      exercices: bloc.exercices,
+                      onExerciseTap: (exercice) => _editExerciceInBloc(
+                        blocIndex: index,
+                        exercice: exercice,
+                      ),
+                    ),
                   ],
                 ),
               );

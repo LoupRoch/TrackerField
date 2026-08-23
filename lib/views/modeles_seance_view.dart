@@ -110,6 +110,7 @@ class ModelesSeanceViewState extends State<ModelesSeanceView> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_modeles',
         onPressed: () => _createOrEdit(),
         icon: const Icon(Icons.add),
         label: const Text('Nouveau modèle'),

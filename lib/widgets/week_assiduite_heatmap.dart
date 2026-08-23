@@ -99,7 +99,7 @@ class WeekAssiduiteHeatmap extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  'Moins',
+                  '0',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -119,7 +119,7 @@ class WeekAssiduiteHeatmap extends StatelessWidget {
                   ),
                 const SizedBox(width: 6),
                 Text(
-                  'Plus',
+                  '4+',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),

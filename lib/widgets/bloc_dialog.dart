@@ -4,6 +4,7 @@ import '../models/bloc.dart';
 import '../models/exercice.dart';
 import 'exercice_dialog.dart';
 import 'media_gallery_dialog.dart';
+import 'recovery_time_field.dart';
 
 Future<Bloc?> showBlocDialog(
   BuildContext context, {
@@ -39,7 +40,7 @@ class _BlocDialog extends StatefulWidget {
 class _BlocDialogState extends State<_BlocDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nomController;
-  late final TextEditingController _recupController;
+  final _recupKey = GlobalKey<RecoveryTimeFieldState>();
   late List<Exercice> _exercices;
 
   @override
@@ -47,16 +48,12 @@ class _BlocDialogState extends State<_BlocDialog> {
     super.initState();
     final initial = widget.initial;
     _nomController = TextEditingController(text: initial?.nom ?? '');
-    _recupController = TextEditingController(
-      text: initial?.tempsRecuperation ?? '',
-    );
     _exercices = initial?.exercices.map((e) => e.copy()).toList() ?? [];
   }
 
   @override
   void dispose() {
     _nomController.dispose();
-    _recupController.dispose();
     super.dispose();
   }
 
@@ -96,7 +93,7 @@ class _BlocDialogState extends State<_BlocDialog> {
       Bloc(
         id: widget.initial?.id,
         nom: _nomController.text.trim(),
-        tempsRecuperation: _recupController.text.trim(),
+        tempsRecuperation: _recupKey.currentState?.value ?? '',
         exercices: _exercices.map((e) => e.copy()).toList(),
       ),
     );
@@ -133,14 +130,9 @@ class _BlocDialogState extends State<_BlocDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _recupController,
-                  decoration: const InputDecoration(
-                    labelText: 'Temps de récupération',
-                    hintText: 'ex: 3:00',
-                    suffixText: ' min:sec',
-                    border: OutlineInputBorder(),
-                  ),
+                RecoveryTimeField(
+                  key: _recupKey,
+                  initialValue: widget.initial?.tempsRecuperation ?? '',
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonalIcon(

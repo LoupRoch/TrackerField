@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/media_storage_service.dart';
+import '../utils/device_layout.dart';
 
 const _frameDuration = Duration(milliseconds: 33);
 
@@ -166,30 +168,68 @@ class _MediaFullscreenPage extends StatefulWidget {
 }
 
 class _MediaFullscreenPageState extends State<_MediaFullscreenPage> {
+  var _showControls = true;
+  Timer? _hideTimer;
+
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    unawaited(unlockOrientationsForFullscreenVideo());
+    _scheduleHideControls();
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(restoreAppOrientations());
     super.dispose();
+  }
+
+  void _scheduleHideControls() {
+    _hideTimer?.cancel();
+    if (!widget.isVideo) return;
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _showControls = false);
+    });
+  }
+
+  void _toggleControls() {
+    setState(() => _showControls = !_showControls);
+    if (_showControls) {
+      _scheduleHideControls();
+    } else {
+      _hideTimer?.cancel();
+    }
+  }
+
+  void _onUserInteraction() {
+    if (!_showControls) {
+      setState(() => _showControls = true);
+    }
+    _scheduleHideControls();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleControls,
         child: Stack(
+          fit: StackFit.expand,
           children: [
             Positioned.fill(
               child: widget.isVideo
                   ? _LocalVideoPlayer(
                       path: widget.file.path,
                       darkControls: true,
+                      fullscreenMode: true,
+                      showControls: _showControls,
+                      onInteraction: _onUserInteraction,
                     )
                   : InteractiveViewer(
                       child: Center(
@@ -204,15 +244,16 @@ class _MediaFullscreenPageState extends State<_MediaFullscreenPage> {
                       ),
                     ),
             ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton.filledTonal(
-                tooltip: 'Quitter le plein écran',
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.fullscreen_exit),
+            if (_showControls)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 8,
+                right: 8,
+                child: IconButton.filledTonal(
+                  tooltip: 'Quitter le plein écran',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.fullscreen_exit),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -226,11 +267,17 @@ class _LocalVideoPlayer extends StatefulWidget {
     required this.path,
     this.onFullscreen,
     this.darkControls = false,
+    this.fullscreenMode = false,
+    this.showControls = true,
+    this.onInteraction,
   });
 
   final String path;
   final VoidCallback? onFullscreen;
   final bool darkControls;
+  final bool fullscreenMode;
+  final bool showControls;
+  final VoidCallback? onInteraction;
 
   @override
   State<_LocalVideoPlayer> createState() => _LocalVideoPlayerState();
@@ -240,8 +287,10 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
   late final VideoPlayerController _controller;
   var _ready = false;
   var _error = false;
-  var _seeking = false;
+  var _seekInProgress = false;
+  double? _dragSliderMs;
   double _speed = 1.0;
+  var _resumeAfterSeek = false;
 
   @override
   void initState() {
@@ -260,7 +309,7 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
   }
 
   void _onControllerUpdate() {
-    if (!mounted || _seeking) return;
+    if (!mounted || _seekInProgress || _dragSliderMs != null) return;
     setState(() {});
   }
 
@@ -279,27 +328,42 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
     return '$minutes:$seconds.$millis';
   }
 
-  Future<void> _seekBy(Duration delta) async {
-    if (!_controller.value.isInitialized) return;
+  Future<void> _seekToPosition(Duration position) async {
+    if (!_controller.value.isInitialized || _seekInProgress) return;
 
-    await _controller.pause();
     final duration = _controller.value.duration;
-    var target = _controller.value.position + delta;
+    var target = position;
     if (target < Duration.zero) target = Duration.zero;
     if (target > duration) target = duration;
 
-    await _controller.seekTo(target);
+    _seekInProgress = true;
+    _resumeAfterSeek = _controller.value.isPlaying;
     if (mounted) setState(() {});
+
+    try {
+      await _controller.pause();
+      await _controller.seekTo(target);
+      if (_resumeAfterSeek) {
+        await _controller.play();
+      }
+    } catch (_) {
+      // Ignore seek errors (decodeur Android peut rejeter des seeks rapides).
+    } finally {
+      _seekInProgress = false;
+      _dragSliderMs = null;
+      if (mounted) setState(() {});
+    }
   }
 
-  Future<void> _seekToPosition(Duration position) async {
-    _seeking = true;
-    await _controller.seekTo(position);
-    _seeking = false;
-    if (mounted) setState(() {});
+  Future<void> _seekBy(Duration delta) async {
+    if (!_controller.value.isInitialized || _seekInProgress) return;
+    widget.onInteraction?.call();
+    final target = _controller.value.position + delta;
+    await _seekToPosition(target);
   }
 
   void _togglePlayPause() {
+    if (_seekInProgress) return;
     setState(() {
       if (_controller.value.isPlaying) {
         _controller.pause();
@@ -310,6 +374,8 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
   }
 
   Future<void> _setSpeed(double speed) async {
+    if (_seekInProgress) return;
+    widget.onInteraction?.call();
     _speed = speed;
     await _controller.setPlaybackSpeed(speed);
     if (mounted) setState(() {});
@@ -319,11 +385,11 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
     final selected = (_speed - speed).abs() < 0.001;
     return selected
         ? FilledButton(
-            onPressed: () => _setSpeed(speed),
+            onPressed: _seekInProgress ? null : () => _setSpeed(speed),
             child: Text('${speed}x'),
           )
         : OutlinedButton(
-            onPressed: () => _setSpeed(speed),
+            onPressed: _seekInProgress ? null : () => _setSpeed(speed),
             child: Text('${speed}x'),
           );
   }
@@ -350,10 +416,14 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
 
     final value = _controller.value;
     final duration = value.duration;
-    final position = value.position > duration ? duration : value.position;
+    final livePosition =
+        value.position > duration ? duration : value.position;
+    final sliderMs = _dragSliderMs ?? livePosition.inMilliseconds.toDouble();
+    final displayPosition = Duration(milliseconds: sliderMs.round());
     final maxMs = duration.inMilliseconds <= 0
         ? 1.0
         : duration.inMilliseconds.toDouble();
+    final controlsLocked = _seekInProgress;
 
     return Column(
       children: [
@@ -370,68 +440,91 @@ class _LocalVideoPlayerState extends State<_LocalVideoPlayer> {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Text(_formatDuration(position), style: labelStyle),
-              Expanded(
-                child: Slider(
-                  value: position.inMilliseconds.toDouble().clamp(0.0, maxMs),
-                  max: maxMs,
-                  onChanged: (ms) {
-                    setState(() => _seeking = true);
-                    _controller.seekTo(Duration(milliseconds: ms.round()));
-                  },
-                  onChangeEnd: (ms) {
-                    _seekToPosition(Duration(milliseconds: ms.round()));
-                  },
+        if (!widget.fullscreenMode || widget.showControls) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Text(_formatDuration(displayPosition), style: labelStyle),
+                Expanded(
+                  child: Slider(
+                    value: sliderMs.clamp(0.0, maxMs),
+                    max: maxMs,
+                    onChangeStart: (_) {
+                      widget.onInteraction?.call();
+                      _resumeAfterSeek = value.isPlaying;
+                      if (_resumeAfterSeek) {
+                        _controller.pause();
+                      }
+                    },
+                    onChanged: controlsLocked
+                        ? null
+                        : (ms) {
+                            widget.onInteraction?.call();
+                            setState(() => _dragSliderMs = ms);
+                          },
+                    onChangeEnd: controlsLocked
+                        ? null
+                        : (ms) {
+                            widget.onInteraction?.call();
+                            _seekToPosition(
+                              Duration(milliseconds: ms.round()),
+                            );
+                          },
+                  ),
                 ),
+                Text(_formatDuration(duration), style: labelStyle),
+              ],
+            ),
+          ),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: controlsLocked
+                    ? null
+                    : () => _seekBy(-_frameDuration),
+                child: const Text('⏪ -1 Image'),
               ),
-              Text(_formatDuration(duration), style: labelStyle),
+              IconButton.filled(
+                onPressed: controlsLocked ? null : () {
+                  widget.onInteraction?.call();
+                  _togglePlayPause();
+                },
+                icon: Icon(
+                  value.isPlaying ? Icons.pause : Icons.play_arrow,
+                ),
+                tooltip: value.isPlaying ? 'Pause' : 'Lecture',
+              ),
+              OutlinedButton(
+                onPressed: controlsLocked
+                    ? null
+                    : () => _seekBy(_frameDuration),
+                child: const Text('+1 Image ⏩'),
+              ),
+              if (widget.onFullscreen != null)
+                IconButton.outlined(
+                  tooltip: 'Plein écran',
+                  onPressed: widget.onFullscreen,
+                  icon: const Icon(Icons.fullscreen),
+                ),
             ],
           ),
-        ),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton(
-              onPressed: () => _seekBy(-_frameDuration),
-              child: const Text('⏪ -1 Image'),
-            ),
-            IconButton.filled(
-              onPressed: _togglePlayPause,
-              icon: Icon(
-                value.isPlaying ? Icons.pause : Icons.play_arrow,
-              ),
-              tooltip: value.isPlaying ? 'Pause' : 'Lecture',
-            ),
-            OutlinedButton(
-              onPressed: () => _seekBy(_frameDuration),
-              child: const Text('+1 Image ⏩'),
-            ),
-            if (widget.onFullscreen != null)
-              IconButton.outlined(
-                tooltip: 'Plein écran',
-                onPressed: widget.onFullscreen,
-                icon: const Icon(Icons.fullscreen),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          children: [
-            _speedButton(0.25),
-            _speedButton(0.5),
-            _speedButton(1.0),
-          ],
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            children: [
+              _speedButton(0.25),
+              _speedButton(0.5),
+              _speedButton(1.0),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }

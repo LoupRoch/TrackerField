@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/athlete.dart';
 import '../services/athlete_provider.dart';
+import '../services/settings_provider.dart';
 import 'resolved_media_image.dart';
 
 class AthleteCard extends StatelessWidget {
@@ -30,6 +31,7 @@ class AthleteCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final provider = context.read<AthleteProvider>();
+    final showGranolas = context.watch<SettingsProvider>().showGranolas;
 
     return Card(
       elevation: 2,
@@ -48,6 +50,8 @@ class AthleteCard extends StatelessWidget {
             return Padding(
               padding: EdgeInsets.all(pad),
               child: Column(
+                mainAxisSize:
+                    showGranolas ? MainAxisSize.max : MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
@@ -90,88 +94,90 @@ class AthleteCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const Spacer(flex: 1),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 12 : 16,
-                      vertical: compact ? 8 : 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.tertiaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.cake_outlined,
-                          size: compact ? 20 : 24,
-                          color: colorScheme.onTertiaryContainer,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Granolas dûs',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: colorScheme.onTertiaryContainer,
-                              fontWeight: FontWeight.w600,
+                  if (showGranolas) ...[
+                    const Spacer(flex: 1),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 12 : 16,
+                        vertical: compact ? 8 : 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.tertiaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cake_outlined,
+                            size: compact ? 20 : 24,
+                            color: colorScheme.onTertiaryContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Granolas dûs',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: colorScheme.onTertiaryContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${athlete.detteGateau}',
+                            style: (compact
+                                    ? theme.textTheme.titleLarge
+                                    : theme.textTheme.headlineMedium)
+                                ?.copyWith(
+                              color: colorScheme.onTertiaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: gap),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: athlete.detteGateau > 0
+                                ? () =>
+                                    provider.decrementDetteGateau(athlete.id)
+                                : null,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: Size.fromHeight(buttonHeight),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: compact ? 8 : 16,
+                              ),
+                              textStyle: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: const Text('-1 granola'),
                           ),
                         ),
-                        Text(
-                          '${athlete.detteGateau}',
-                          style: (compact
-                                  ? theme.textTheme.titleLarge
-                                  : theme.textTheme.headlineMedium)
-                              ?.copyWith(
-                            color: colorScheme.onTertiaryContainer,
-                            fontWeight: FontWeight.bold,
+                        SizedBox(width: compact ? 8 : 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () =>
+                                provider.incrementDetteGateau(athlete.id),
+                            style: FilledButton.styleFrom(
+                              minimumSize: Size.fromHeight(buttonHeight),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: compact ? 8 : 16,
+                              ),
+                              textStyle: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: const Text('+1 granola'),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  SizedBox(height: gap),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: athlete.detteGateau > 0
-                              ? () =>
-                                  provider.decrementDetteGateau(athlete.id)
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: Size.fromHeight(buttonHeight),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 8 : 16,
-                            ),
-                            textStyle: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          child: const Text('-1 granola'),
-                        ),
-                      ),
-                      SizedBox(width: compact ? 8 : 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () =>
-                              provider.incrementDetteGateau(athlete.id),
-                          style: FilledButton.styleFrom(
-                            minimumSize: Size.fromHeight(buttonHeight),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 8 : 16,
-                            ),
-                            textStyle: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          child: const Text('+1 granola'),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
             );

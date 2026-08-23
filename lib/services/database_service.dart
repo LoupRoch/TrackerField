@@ -128,6 +128,22 @@ class DatabaseService {
     return box;
   }
 
+  /// Supprime toutes les données (athlètes, séances, tests, compétitions).
+  Future<void> clearAll() async {
+    await ensureReady();
+    await _athletes.clear();
+    await _seances.clear();
+    await _tests.clear();
+    await _competitions.clear();
+  }
+
+  bool get isEmpty {
+    return (_athletesBox?.isEmpty ?? true) &&
+        (_seancesBox?.isEmpty ?? true) &&
+        (_testsBox?.isEmpty ?? true) &&
+        (_competitionsBox?.isEmpty ?? true);
+  }
+
   Future<void> addAthlete(Athlete athlete) async {
     await ensureReady();
     await _athletes.put(athlete.id, athlete);

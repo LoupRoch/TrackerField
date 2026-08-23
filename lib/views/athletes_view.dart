@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../services/athlete_photo_service.dart';
 import '../services/athlete_provider.dart';
+import '../services/settings_provider.dart';
 import '../widgets/athlete_card.dart';
 import '../widgets/resolved_media_image.dart';
 import 'athlete_detail_view.dart';
+import 'settings_view.dart';
 
 class AthletesView extends StatelessWidget {
   const AthletesView({super.key});
@@ -29,10 +31,24 @@ class AthletesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final athletes = context.watch<AthleteProvider>().athletes;
+    final showGranolas = context.watch<SettingsProvider>().showGranolas;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Athlètes'),
+        actions: [
+          IconButton(
+            tooltip: 'Paramètres',
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SettingsView(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: athletes.isEmpty
           ? Center(
@@ -54,12 +70,18 @@ class AthletesView extends StatelessWidget {
                         : width >= 560
                             ? 2
                             : 1;
-                // Hauteur fixe : évite le bottom overflow en portrait téléphone.
-                final mainAxisExtent = crossAxisCount == 1
-                    ? 220.0
-                    : width >= 800
-                        ? 280.0
-                        : 250.0;
+                // Hauteur adaptée au contenu (granolas activés ou non).
+                final mainAxisExtent = showGranolas
+                    ? (crossAxisCount == 1
+                        ? 220.0
+                        : width >= 800
+                            ? 280.0
+                            : 250.0)
+                    : (crossAxisCount == 1
+                        ? 120.0
+                        : width >= 800
+                            ? 150.0
+                            : 140.0);
 
                 return GridView.builder(
                   padding: EdgeInsets.all(crossAxisCount == 1 ? 16 : 24),
@@ -89,6 +111,7 @@ class AthletesView extends StatelessWidget {
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_athletes',
         onPressed: () => _showAddAthleteDialog(context),
         icon: const Icon(Icons.person_add),
         label: const Text('Ajouter'),

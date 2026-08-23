@@ -8,6 +8,7 @@ import '../models/test_performance.dart';
 import '../services/athlete_photo_service.dart';
 import '../services/athlete_provider.dart';
 import '../services/database_service.dart';
+import '../services/settings_provider.dart';
 import '../widgets/resolved_media_image.dart';
 import '../widgets/test_evolution_chart.dart';
 import '../widgets/week_assiduite_heatmap.dart';
@@ -250,6 +251,7 @@ class _AthleteDetailViewState extends State<AthleteDetailView> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_athlete_detail',
         onPressed: _showAddTestDialog,
         icon: const Icon(Icons.science),
         label: const Text('Ajouter un test'),
@@ -302,14 +304,17 @@ class _AthleteDetailViewState extends State<AthleteDetailView> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final wide = constraints.maxWidth >= 700;
+                    final showGranolas =
+                        context.watch<SettingsProvider>().showGranolas;
                     final cards = [
-                      _kpiCard(
-                        context: context,
-                        title: 'Dette de gâteaux',
-                        value: '${athlete.detteGateau}',
-                        icon: Icons.cake_outlined,
-                        onEdit: () => _showEditAthleteDialog(athlete),
-                      ),
+                      if (showGranolas)
+                        _kpiCard(
+                          context: context,
+                          title: 'Dette de granolas',
+                          value: '${athlete.detteGateau}',
+                          icon: Icons.cake_outlined,
+                          onEdit: () => _showEditAthleteDialog(athlete),
+                        ),
                       _kpiCard(
                         context: context,
                         title: 'Total séances',
@@ -366,7 +371,7 @@ class _AthleteDetailViewState extends State<AthleteDetailView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Heatmap d\'entraînement',
+                          'Charge d\'entraînement',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -572,7 +577,10 @@ class _EditAthleteDialogState extends State<_EditAthleteDialog> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final dette = int.tryParse(_detteController.text.trim());
+    final showGranolas = context.read<SettingsProvider>().showGranolas;
+    final dette = showGranolas
+        ? int.tryParse(_detteController.text.trim())
+        : widget.athlete.detteGateau;
     if (dette == null || dette < 0) return;
 
     await context.read<AthleteProvider>().updateAthlete(
@@ -591,6 +599,7 @@ class _EditAthleteDialogState extends State<_EditAthleteDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final showGranolas = context.watch<SettingsProvider>().showGranolas;
     final dateLabel =
         '${_dateNaissance.day.toString().padLeft(2, '0')}/'
         '${_dateNaissance.month.toString().padLeft(2, '0')}/'
@@ -667,26 +676,28 @@ class _EditAthleteDialogState extends State<_EditAthleteDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _detteController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Dette de gâteau',
-                    border: OutlineInputBorder(),
+                if (showGranolas)
+                  TextFormField(
+                    controller: _detteController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'Dette de granolas',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'La dette est requise';
+                      }
+                      final parsed = int.tryParse(value.trim());
+                      if (parsed == null || parsed < 0) {
+                        return 'Valeur invalide';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'La dette est requise';
-                    }
-                    final parsed = int.tryParse(value.trim());
-                    if (parsed == null || parsed < 0) {
-                      return 'Valeur invalide';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
+                if (showGranolas) const SizedBox(height: 24),
+                if (!showGranolas) const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: _confirmDelete,
                   icon: Icon(Icons.delete_outline, color: colorScheme.error),

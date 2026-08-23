@@ -4,22 +4,35 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/bloc.dart';
+import '../models/exercice.dart';
 import '../models/seance.dart';
 import '../services/athlete_provider.dart';
 import '../services/database_service.dart';
 import 'bloc_dialog.dart';
 import 'bloc_exercices_details.dart';
+import 'exercice_dialog.dart';
 
 class SessionPanel extends StatefulWidget {
-  const SessionPanel({super.key, this.panelLabel});
+  const SessionPanel({
+    super.key,
+    this.panelLabel,
+    this.showEmbeddedSaveButton = true,
+    this.onChanged,
+  });
 
   final String? panelLabel;
 
+  /// `false` quand le parent affiche le bouton sauvegarder (ex. AppBar).
+  final bool showEmbeddedSaveButton;
+
+  /// Notifie le parent pour rafraîchir l'AppBar (ex. état de sauvegarde).
+  final VoidCallback? onChanged;
+
   @override
-  State<SessionPanel> createState() => _SessionPanelState();
+  SessionPanelState createState() => SessionPanelState();
 }
 
-class _SessionPanelState extends State<SessionPanel> {
+class SessionPanelState extends State<SessionPanel> {
   final _titreController = TextEditingController();
 
   final List<Bloc> _blocs = [];
@@ -32,6 +45,8 @@ class _SessionPanelState extends State<SessionPanel> {
   Duration _elapsed = Duration.zero;
   var _isRunning = false;
   var _isSaving = false;
+
+  void _notifyChanged() => widget.onChanged?.call();
 
   @override
   void dispose() {
@@ -89,6 +104,34 @@ class _SessionPanelState extends State<SessionPanel> {
   void _duplicateBloc(int index) {
     setState(() {
       _blocs.insert(index + 1, _blocs[index].copy(asNew: true));
+    });
+  }
+
+  Future<void> _editExerciceInBloc({
+    required int blocIndex,
+    required Exercice exercice,
+  }) async {
+    final bloc = _blocs[blocIndex];
+    final exerciceIndex =
+        bloc.exercices.indexWhere((e) => e.id == exercice.id);
+    if (exerciceIndex < 0) return;
+
+    final result = await showExerciceDialog(
+      context,
+      initial: exercice,
+      athleteIds: _selectedAthleteIds.toList(),
+    );
+    if (result == null || !mounted) return;
+
+    setState(() {
+      final updated = List<Exercice>.from(bloc.exercices);
+      updated[exerciceIndex] = result;
+      _blocs[blocIndex] = Bloc(
+        id: bloc.id,
+        nom: bloc.nom,
+        tempsRecuperation: bloc.tempsRecuperation,
+        exercices: updated,
+      );
     });
   }
 
@@ -300,6 +343,7 @@ class _SessionPanelState extends State<SessionPanel> {
     }
 
     setState(() => _isSaving = true);
+    _notifyChanged();
     _pauseChrono();
 
     try {
@@ -354,8 +398,27 @@ class _SessionPanelState extends State<SessionPanel> {
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
+        _notifyChanged();
       }
     }
+  }
+
+  Future<void> saveSeance() => _saveSeance();
+
+  bool get isSaving => _isSaving;
+
+  Widget _buildSaveIconButton() {
+    return IconButton.filledTonal(
+      tooltip: 'Sauvegarder la séance',
+      onPressed: _isSaving ? null : _saveSeance,
+      icon: _isSaving
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.save),
+    );
   }
 
   @override
@@ -373,13 +436,40 @@ class _SessionPanelState extends State<SessionPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.showEmbeddedSaveButton)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: Row(
+                children: [
+                  if (widget.panelLabel != null)
+                    Expanded(
+                      child: Text(
+                        widget.panelLabel!,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  _buildSaveIconButton(),
+                ],
+              ),
+            ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                widget.showEmbeddedSaveButton ? 8 : 16,
+                16,
+                8,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.panelLabel != null) ...[
+                  if (widget.panelLabel != null &&
+                      !widget.showEmbeddedSaveButton) ...[
                     Text(
                       widget.panelLabel!,
                       style: theme.textTheme.labelLarge?.copyWith(
@@ -576,40 +666,16 @@ class _SessionPanelState extends State<SessionPanel> {
                             BlocExercicesDetails(
                               exercices: bloc.exercices,
                               dense: true,
+                              onExerciseTap: (exercice) => _editExerciceInBloc(
+                                blocIndex: index,
+                                exercice: exercice,
+                              ),
                             ),
                           ],
                         ),
                       );
                     }),
                 ],
-              ),
-            ),
-          ),
-          Material(
-            elevation: 2,
-            color: colorScheme.surface,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: FilledButton.icon(
-                onPressed: _isSaving ? null : _saveSeance,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: Text(
-                  _isSaving
-                      ? 'Sauvegarde…'
-                      : 'Terminer et Sauvegarder la séance',
-                ),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  textStyle: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ),
             ),
           ),
