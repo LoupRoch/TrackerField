@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/bloc.dart';
 import '../models/exercice.dart';
+import '../utils/recovery_time.dart';
 import 'exercice_dialog.dart';
 import 'media_gallery_dialog.dart';
-import 'recovery_time_field.dart';
+import 'recovery_time_input.dart';
 
 Future<Bloc?> showBlocDialog(
   BuildContext context, {
@@ -40,8 +41,8 @@ class _BlocDialog extends StatefulWidget {
 class _BlocDialogState extends State<_BlocDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nomController;
-  final _recupKey = GlobalKey<RecoveryTimeFieldState>();
   late List<Exercice> _exercices;
+  late String _recupValue;
 
   @override
   void initState() {
@@ -49,6 +50,9 @@ class _BlocDialogState extends State<_BlocDialog> {
     final initial = widget.initial;
     _nomController = TextEditingController(text: initial?.nom ?? '');
     _exercices = initial?.exercices.map((e) => e.copy()).toList() ?? [];
+    _recupValue = initial != null && initial.tempsRecuperation.isNotEmpty
+        ? RecoveryTime.normalizeDisplay(initial.tempsRecuperation)
+        : '00:00';
   }
 
   @override
@@ -93,7 +97,8 @@ class _BlocDialogState extends State<_BlocDialog> {
       Bloc(
         id: widget.initial?.id,
         nom: _nomController.text.trim(),
-        tempsRecuperation: _recupKey.currentState?.value ?? '',
+        tempsRecuperation:
+            _recupValue == '00:00' ? '' : _recupValue,
         exercices: _exercices.map((e) => e.copy()).toList(),
       ),
     );
@@ -130,9 +135,9 @@ class _BlocDialogState extends State<_BlocDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                RecoveryTimeField(
-                  key: _recupKey,
-                  initialValue: widget.initial?.tempsRecuperation ?? '',
+                RecoveryTimeInput(
+                  initialValue: widget.initial?.tempsRecuperation,
+                  onChanged: (value) => setState(() => _recupValue = value),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonalIcon(

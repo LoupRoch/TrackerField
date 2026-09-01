@@ -27,15 +27,65 @@ class RecoveryTime {
     return '$minPart:${clampedSec.toString().padLeft(2, '0')}';
   }
 
-  static String? validateRequired(String minutes, String seconds) {
+  /// Secondes autorisées pour la récupération (quarts de minute).
+  static const allowedSecondValues = [0, 15, 30, 45];
+
+  /// Ramène les secondes au quart de minute le plus proche (0, 15, 30 ou 45).
+  static int snapSeconds(int seconds) {
+    final clamped = seconds.clamp(0, 59);
+    var closest = allowedSecondValues.first;
+    var minDiff = (clamped - closest).abs();
+    for (final candidate in allowedSecondValues) {
+      final diff = (clamped - candidate).abs();
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = candidate;
+      }
+    }
+    return closest;
+  }
+
+  /// Convertit une chaîne « M:SS » en [Duration].
+  static Duration toDuration(String? value) {
+    final parsed = parse(value ?? '');
+    final minutes = int.tryParse(parsed.minutes) ?? 0;
+    final seconds = int.tryParse(parsed.seconds) ?? 0;
+    return Duration(
+      minutes: minutes,
+      seconds: snapSeconds(seconds),
+    );
+  }
+
+  /// Formate une durée en « MM:SS » (affichage et saisie).
+  static String fromDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = snapSeconds(duration.inSeconds % 60);
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
+  /// Normalise une valeur existante pour l'affichage « MM:SS ».
+  static String normalizeDisplay(String? value) {
+    if (value == null || value.trim().isEmpty) return '00:00';
+    return fromDuration(toDuration(value));
+  }
+
+  static String? validateRequired(String? value) {
+    if (value == null || value.trim().isEmpty || value == '00:00') {
+      return 'Requis';
+    }
+    return null;
+  }
+
+  static String? validateRequiredParts(String minutes, String seconds) {
     if (minutes.trim().isEmpty && seconds.trim().isEmpty) {
       return 'Requis';
     }
     final secText = seconds.trim();
     if (secText.isNotEmpty) {
       final sec = int.tryParse(secText);
-      if (sec == null || sec < 0 || sec > 59) {
-        return 'Secondes : 0–59';
+      if (sec == null || !allowedSecondValues.contains(sec)) {
+        return 'Secondes : 0, 15, 30 ou 45';
       }
     }
     return null;

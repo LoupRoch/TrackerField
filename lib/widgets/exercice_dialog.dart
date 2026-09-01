@@ -10,9 +10,10 @@ import '../services/database_service.dart';
 import '../services/media_storage_service.dart';
 import '../utils/dictation_input_mode.dart';
 import '../utils/exercise_input_formatters.dart';
+import '../utils/recovery_time.dart';
 import 'dictatable_text_form_field.dart';
 import 'dictation_form_scope.dart';
-import 'recovery_time_field.dart';
+import 'recovery_time_input.dart';
 import 'session_autocomplete_field.dart';
 
 Future<Exercice?> showExerciceDialog(
@@ -65,12 +66,13 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
   final _picker = ImagePicker();
   final _distanceKey = GlobalKey<SessionAutocompleteFieldState>();
   final _nomKey = GlobalKey<SessionAutocompleteFieldState>();
-  final _recupKey = GlobalKey<RecoveryTimeFieldState>();
   late final TextEditingController _notesController;
   final Map<String, TextEditingController> _chronoControllers = {};
 
   late String _type;
   late List<String> _mediaPaths;
+  late String _recupValue;
+  String? _recupError;
 
   @override
   void initState() {
@@ -79,6 +81,9 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
     _type = initial?.type ?? Exercice.types.first;
     _notesController = TextEditingController(text: initial?.notes ?? '');
     _mediaPaths = List<String>.from(initial?.mediaPaths ?? const []);
+    _recupValue = initial != null && initial.tempsRecuperation.isNotEmpty
+        ? RecoveryTime.normalizeDisplay(initial.tempsRecuperation)
+        : '00:00';
 
     final existingChronos = {
       for (final c in initial?.chronos ?? const <ChronoAthlete>[])
@@ -153,11 +158,13 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final recupError = _recupKey.currentState?.validate();
-    if (recupError != null) return;
+    final recupError = RecoveryTime.validateRequired(_recupValue);
+    if (recupError != null) {
+      setState(() => _recupError = recupError);
+      return;
+    }
 
-    final recup = _recupKey.currentState?.value ?? '';
-    if (recup.isEmpty) return;
+    final recup = _recupValue;
 
     final isCourse = _type == 'Course';
     final distance = isCourse ? (_distanceKey.currentState?.value ?? '') : null;
@@ -272,11 +279,23 @@ class _ExerciceDialogState extends State<_ExerciceDialog> {
                     },
                   ),
                 const SizedBox(height: 12),
-                RecoveryTimeField(
-                  key: _recupKey,
-                  initialValue: initial?.tempsRecuperation ?? '',
-                  required: true,
+                RecoveryTimeInput(
+                  initialValue: initial?.tempsRecuperation,
+                  onChanged: (value) => setState(() {
+                    _recupValue = value;
+                    _recupError = null;
+                  }),
                 ),
+                if (_recupError != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _recupError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
                 if (!widget.templateMode) ...[
                   const SizedBox(height: 12),
                   DictatableTextFormField(

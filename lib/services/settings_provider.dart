@@ -30,23 +30,34 @@ class SettingsProvider extends ChangeNotifier {
 
   static const _keyGranolas = 'settings_show_granolas';
   static const _keyPalette = 'settings_color_palette';
+  static const _keyThemeMode = 'settings_theme_mode';
 
   SharedPreferences? _prefs;
   var _ready = false;
   var _showGranolas = true;
   AppColorPalette _palette = AppColorPalette.deepOrange;
+  ThemeMode _themeMode = ThemeMode.system;
 
   bool get isReady => _ready;
   bool get showGranolas => _showGranolas;
   AppColorPalette get palette => _palette;
+  ThemeMode get themeMode => _themeMode;
   Color get seedColor => _palette.seedColor;
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
     _showGranolas = _prefs?.getBool(_keyGranolas) ?? true;
     _palette = AppColorPalette.fromName(_prefs?.getString(_keyPalette));
+    _themeMode = _themeModeFromName(_prefs?.getString(_keyThemeMode));
     _ready = true;
     notifyListeners();
+  }
+
+  ThemeMode _themeModeFromName(String? name) {
+    return ThemeMode.values.firstWhere(
+      (mode) => mode.name == name,
+      orElse: () => ThemeMode.system,
+    );
   }
 
   Future<void> setShowGranolas(bool value) async {
@@ -60,6 +71,13 @@ class SettingsProvider extends ChangeNotifier {
     if (_palette == value) return;
     _palette = value;
     await _prefs?.setString(_keyPalette, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode value) async {
+    if (_themeMode == value) return;
+    _themeMode = value;
+    await _prefs?.setString(_keyThemeMode, value.name);
     notifyListeners();
   }
 }

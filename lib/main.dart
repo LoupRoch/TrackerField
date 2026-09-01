@@ -59,9 +59,20 @@ class TrackerFieldApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: settings.seedColor),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: settings.seedColor,
+                brightness: Brightness.light,
+              ),
               useMaterial3: true,
             ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: settings.seedColor,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+            ),
+            themeMode: settings.themeMode,
             home: const DashboardView(),
           );
         },
